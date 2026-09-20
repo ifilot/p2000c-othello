@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull the Z88DK toolchain image
+        run: docker pull z88dk/z88dk
+
+      - name: Build OTHELLO.COM
+        run: make build
+
+      - name: Package
+        run: |
+          mkdir -p release
+          cp build/OTHELLO.COM LICENSE README.md release/
+          cd release && zip -9 ../p2000c-othello.zip OTHELLO.COM LICENSE README.md
+          sha256sum ../p2000c-othello.zip OTHELLO.COM
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2000c-othello
+          path: |
+            p2000c-othello.zip
+            build/OTHELLO.COM
+          retention-days: 90
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: p2000c-othello
+          path: dist
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/p2000c-othello.zip dist/build/OTHELLO.COM \
+            --title "Othello $GITHUB_REF_NAME" --generate-notes

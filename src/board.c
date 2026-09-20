@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* board.c -- Othello rules: setup and the whole-board queries.
  *
  * The board is 64 bytes, row-major, A1 = 0. board_steps gives, per square

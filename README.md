@@ -1,19 +1,25 @@
 # Othello for the Philips P2000C
 
+[![Build](https://github.com/ifilot/p2000c-othello/actions/workflows/build.yml/badge.svg)](https://github.com/ifilot/p2000c-othello/actions/workflows/build.yml)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/ifilot/p2000c-othello/releases)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+
 Othello (Reversi) against the computer, for the Philips P2000C running CP/M.
 The game uses the terminal board's 512x252 high-resolution graphics mode for
 the board and the text plane for the score panel. The user interface is in
 Dutch. Three difficulty levels are offered at the start.
 
-![Start screen](docs/start.png)
-
-![Playing field](docs/board.png)
+<p align="center">
+  <img src="docs/start.png" alt="Start screen" width="48%">
+  <img src="docs/board.png" alt="Playing field" width="48%">
+</p>
 
 ## Play
 
-Copy `OTHELLO.COM` to a CP/M disk and run `OTHELLO`. The start screen (plain
-text, so it appears instantly) asks for the difficulty; `1`, `2` or `3`
-starts the game.
+Download `OTHELLO.COM` from the [releases](https://github.com/ifilot/p2000c-othello/releases)
+(or the latest [build artifact](https://github.com/ifilot/p2000c-othello/actions)),
+copy it to a CP/M disk and run `OTHELLO`. The start screen (plain text, so it
+appears instantly) asks for the difficulty; `1`, `2` or `3` starts the game.
 
 | Key | Action |
 | --- | --- |
@@ -45,7 +51,7 @@ emulator, character-ROM font):
 
 ```sh
 make run              # open the game in the graphical emulator (WSLg/Linux)
-make screenshot       # plain raster dump of the start screen -> build/board.png
+make screenshot       # plain raster dump (green on black) -> build/board.png
 make test             # full games against the computer in the headless emulator
 make sprites          # regenerate src/sprites.h from the font sheet
 python3 tools/bench.py 3   # emulated seconds per round at a level
@@ -71,3 +77,16 @@ The whole 16 KiB frame is composed in RAM and sent once with an `ESC r` bulk
 write (about four seconds over the serial link); afterwards only the rows of
 the cells that changed are re-sent. Raw bytes go through BIOS `CONOUT`,
 because BDOS console output filters control characters.
+
+## Continuous integration
+
+The [workflow](.github/workflows/build.yml) builds `OTHELLO.COM` with the
+Z88DK Docker image on every push and pull request and uploads it as an
+artifact; pushing a `v*` tag publishes a GitHub release with the binary and a
+ZIP that includes the license and this README.
+
+## License
+
+GNU General Public License v3.0; see [LICENSE](LICENSE). The character-ROM
+font sheet used only by the screenshot tooling belongs to the
+[p2000c-emulator](https://github.com/ifilot/p2000c-emulator) project.

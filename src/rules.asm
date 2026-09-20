@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-only
 ; rules.asm -- the hot paths of the Othello rules in Z80 assembly.
 ;
 ; The computer's search calls these thousands of times per move. A single

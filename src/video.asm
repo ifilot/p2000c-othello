@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-3.0-only
 ; video.asm -- framebuffer and terminal-board primitives for the P2000C.
 ;
 ; The 512x252 high-res picture is composed in a 16128-byte framebuffer

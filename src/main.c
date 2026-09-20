@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Othello voor de Philips P2000C -- play against the computer, in Dutch.
  *
  * The screen is the terminal board's 512x252 high-res mode. Everything on

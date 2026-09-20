@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* cpu.h -- computer player. */
 #ifndef CPU_H
 #define CPU_H

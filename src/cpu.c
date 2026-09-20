@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* cpu.c -- computer player.
  *
  * Level 1 is the P2000M Othello heuristic: every legal move is scored by

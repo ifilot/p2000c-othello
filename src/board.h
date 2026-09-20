@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* board.h -- Othello rules on a 64-byte board (row-major, A1 = 0).
  *
  * The direction walks live in rules.asm; the macros pack (cell, colour)

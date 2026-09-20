@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* video.h -- framebuffer and terminal-board primitives (see video.asm). */
 #ifndef VIDEO_H
 #define VIDEO_H

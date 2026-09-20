@@ -5,7 +5,10 @@ Usage: python3 tools/render.py [--wait-for TEXT] [--out FILE.png] [-- ACTIONS]
 
 The PNG is a plain dump of the terminal's dot raster: graphics RAM merged
 with the text plane (rendered with the character-ROM glyphs from the sibling
-p2000c-emulator font sheet), one dot per 3x5 block, white on black. Requires
+p2000c-emulator font sheet), one dot per 3x5 block, green on black, no CRT
+effects. Both rasters are placed on the 640x288-dot text canvas the way the
+terminal does it (the graphics raster is centred at the same dot pitch), so
+text-mode and graphics-mode screenshots have the same size. Requires
 the sibling p2000c-cpm-disk-tool checkout (headless emulator, dist/pro/
 images) and the p2000c-emulator checkout (font sheet).
 """
@@ -33,6 +36,8 @@ TEXT_RASTER = (640, 288)            # 80x8 by 24x12 dots; sets the dot pitch
 FONT_SHEET = TOOL.parent / "p2000c-emulator/assets/font/P2000C font mini.png"
 
 DOT_PITCH = (3, 5)                  # horizontal:vertical dot pitch on the 4:3 CRT
+FOREGROUND = (51, 255, 51)          # plain phosphor green
+BACKGROUND = (0, 0, 0)
 
 
 def make_image(com: Path, out_dir: Path) -> Path:
@@ -102,11 +107,14 @@ def raster_dots(state: dict, graphics: bytes) -> tuple[list[list[int]], int, int
 
 
 def compose(state: dict, graphics: bytes) -> Image.Image:
-    """Plain render: one raster dot -> a 3x5 white block (the CRT dot pitch)."""
+    """Plain render: one raster dot -> a 3x5 green block (the CRT dot pitch)."""
     dots, rw, rh = raster_dots(state, graphics)
-    img = Image.new("L", (rw, rh), 0)
-    img.putdata([255 if level else 0 for row in dots for level in row])
-    return img.resize((rw * DOT_PITCH[0], rh * DOT_PITCH[1]), Image.NEAREST)
+    raster = Image.new("L", (rw, rh), 0)
+    raster.putdata([255 if level else 0 for row in dots for level in row])
+    canvas = Image.new("L", TEXT_RASTER, 0)
+    canvas.paste(raster, ((TEXT_RASTER[0] - rw) // 2, (TEXT_RASTER[1] - rh) // 2))
+    canvas = canvas.resize((TEXT_RASTER[0] * DOT_PITCH[0], TEXT_RASTER[1] * DOT_PITCH[1]), Image.NEAREST)
+    return Image.merge("RGB", [canvas.point(lambda v, c=c: c if v else b) for c, b in zip(FOREGROUND, BACKGROUND)])
 
 
 def main() -> None:
@@ -125,6 +133,7 @@ def main() -> None:
     lit = sum(bin(b).count("1") for b in graphics)
     print(f"status={state['status']} mode={state['graphics_mode']} "
           f"cycles={state['cycles']:,} lit_pixels={lit} com={com.stat().st_size}B")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     compose(state, graphics).save(args.out)
     print(f"wrote {args.out}")
 
