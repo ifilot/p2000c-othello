@@ -6,9 +6,9 @@
  * never be recaptured. Levels 2 and 3 run a negamax search with alpha-beta
  * pruning to that many plies, judging leaves by the positional weight table
  * in rules.asm (corners good, the squares next to them dangerous) and
- * finished games by the disc difference. Squares are visited in a fixed order and replaced
- * only on a strictly better score, so every level is deterministic and
- * complete emulator games are reproducible.
+ * finished games by the disc difference. Squares are visited in a fixed
+ * order and replaced only on a strictly better score, so every level is
+ * deterministic and complete emulator games are reproducible.
  */
 #include <string.h>
 #include "board.h"

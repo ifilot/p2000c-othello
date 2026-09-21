@@ -51,11 +51,14 @@ def make_image(com: Path, out_dir: Path) -> Path:
     return image
 
 
-def run(image: Path, out_dir: Path, wait_for: str, extra: list[str]) -> tuple[dict, bytes]:
+SKIP_SPLASH = ["--run", "12000000", "--send", " "]     # let the title picture finish, then a key
+
+
+def run(image: Path, out_dir: Path, wait_for: str, extra: list[str], splash: bool = False) -> tuple[dict, bytes]:
     dump = out_dir / "graphics.bin"
     cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0),
            "--hard-disk-1", str(image), "--fast-storage",
-           "--wait-for", "A>", "--send", "F:OTHELLO\r",
+           "--wait-for", "A>", "--send", "F:OTHELLO\r", *([] if splash else SKIP_SPLASH),
            "--wait-for", wait_for, *extra,
            "--dump-graphics", str(dump), "--output", "json"]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -123,13 +126,14 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=ROOT / "build/board.png")
     parser.add_argument("--com", type=Path, default=ROOT / "build/OTHELLO.COM",
                         help="CP/M binary built by make build")
+    parser.add_argument("--splash", action="store_true", help="stay on the title picture instead of skipping it")
     parser.add_argument("extra", nargs="*", help="additional emulator actions")
     args = parser.parse_args()
     out_dir = ROOT / "build"
     out_dir.mkdir(exist_ok=True)
     com = args.com
     image = make_image(com, out_dir)
-    state, graphics = run(image, out_dir, args.wait_for, args.extra)
+    state, graphics = run(image, out_dir, args.wait_for, args.extra, args.splash)
     lit = sum(bin(b).count("1") for b in graphics)
     print(f"status={state['status']} mode={state['graphics_mode']} "
           f"cycles={state['cycles']:,} lit_pixels={lit} com={com.stat().st_size}B")

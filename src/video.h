@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* video.h -- framebuffer and terminal-board primitives (see video.asm). */
+/* video.h -- framebuffer and terminal-board primitives (see video.asm).
+ *
+ * Framebuffer offsets are byte positions (line * FB_LINE + column); WH packs a
+ * width in bytes with a row count, ROWCOL/COLROW pack text or dot positions. */
 #ifndef VIDEO_H
 #define VIDEO_H
 
@@ -18,7 +21,6 @@ extern void video_fill(unsigned int offset, unsigned int value, unsigned int cou
 extern void video_or_col(unsigned int offset, unsigned int mask, unsigned int count);
 extern void video_blit(const unsigned char *sprite, unsigned int offset, unsigned int wh);
 extern void video_xor(const unsigned char *sprite, unsigned int offset, unsigned int wh);
-extern void video_flush_rows(unsigned int first_count) __z88dk_fastcall;
 extern void video_flush_rect(unsigned int col_row, unsigned int wh);
 extern void video_graphics(void);
 extern void video_text(void);

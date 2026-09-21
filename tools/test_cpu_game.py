@@ -60,7 +60,7 @@ def emulate(level, actions, timeout=900):
     """Boots, selects the level and performs the actions; returns the panel rows."""
     work = ROOT / "build"
     cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0), "--hard-disk-1", str(work / "hd1.hda"),
-           "--fast-storage", "--chunk-cycles", "5000", "--wait-for", "A>", "--send", "F:OTHELLO\\r",
+           "--fast-storage", "--chunk-cycles", "5000", "--wait-for", "A>", "--send", "F:OTHELLO\\r", "--run", "12000000", "--send", " ",
            "--wait-for", "Kies de sterkte", "--send", str(level), "--wait-for", "Zwart aan zet", *actions,
            "--dump-graphics", str(work / "graphics.bin"), "--output", "json"]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)

@@ -18,7 +18,7 @@ def run(level, rounds, marker):
     for _ in range(rounds):
         actions += ["--send", "\\r", "--wait-for", "Wit denkt", "--wait-for", marker]
     cmd = [str(EMULATOR), "--ipl", str(IPL), "--hard-disk-0", str(HD0), "--hard-disk-1", str(ROOT / "build/hd1.hda"),
-           "--fast-storage", "--chunk-cycles", "2000", "--wait-for", "A>", "--send", "F:OTHELLO\\r",
+           "--fast-storage", "--chunk-cycles", "2000", "--wait-for", "A>", "--send", "F:OTHELLO\\r", "--run", "12000000", "--send", " ",
            "--wait-for", "Kies de sterkte", "--send", str(level), "--wait-for", "Zwart aan zet", *actions, "--output", "json"]
     state = json.loads(subprocess.run(cmd, capture_output=True, text=True, timeout=900).stdout)
     assert state["status"] == "ok", state.get("message")

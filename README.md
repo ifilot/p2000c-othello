@@ -10,7 +10,10 @@ the board and the text plane for the score panel. The user interface is in
 Dutch. Three difficulty levels are offered at the start.
 
 <p align="center">
+  <img src="docs/splash.png" alt="Title picture" width="48%">
   <img src="docs/start.png" alt="Start screen" width="48%">
+</p>
+<p align="center">
   <img src="docs/board.png" alt="Playing field" width="48%">
 </p>
 
@@ -33,8 +36,11 @@ appears instantly) asks for the difficulty; `1`, `2` or `3` starts the game.
 | `N` | Back to the start screen for a new game |
 | `Q` | Quit, after confirmation (immediate on the start screen) |
 
-You play Black and move first; the P2000C plays White. Legal moves are marked
-with a dot. Levels: **1** plays the move that flips the most discs (corners
+You play Black and move first; the P2000C plays White. After five minutes
+without a keypress a screen saver blanks the picture (a quarter-bright
+caption wandering over a black text screen, to spare the CRT); any key
+brings the screen back. It never interrupts a running demo. Legal moves are marked
+with a dot; the panel shows the move number and the elapsed time of the game. Levels: **1** plays the move that flips the most discs (corners
 preferred), **2** and **3** search two and three plies ahead with a positional
 evaluation. Level 3 thinks up to about three seconds per move.
 
@@ -59,7 +65,7 @@ make screenshot       # plain raster dump (green on black) -> build/board.png
 make test             # full games against the computer in the headless emulator
 make deploy           # build/HD1_256.hda: second SASI disk with OTHELLO.COM on F:
 make diag             # assemble tools/diag/DIAG.COM, the terminal probe used during development
-make sprites          # regenerate src/sprites.h from the font sheet
+make sprites          # regenerate src/sprites.h and src/splash.h (python3 tools/gen_splash.py --all previews all designs)
 python3 tools/bench.py 3   # emulated seconds per round at a level
 ```
 
@@ -67,13 +73,19 @@ python3 tools/bench.py 3   # emulated seconds per round at a level
 
 | File | Contents |
 | --- | --- |
-| `src/main.c` | Screen composition, text panel, input and game flow |
+| `src/main.c` | Program flow: title picture, start screen, games |
+| `src/game.c`, `src/game.h` | Game state, the human/computer turn cycle, the demo |
+| `src/screen.c`, `src/screen.h` | Board picture: framebuffer composition and uploads |
+| `src/panel.c`, `src/panel.h` | Score/status panel on the text plane |
+| `src/screens.c`, `src/screens.h` | Start and help screens (text mode), title picture |
+| `src/clock.c`, `src/clock.h` | Game clock (h:mm:ss) from the BIOS's documented 60 Hz system timer (DPB `CLOCK` field) |
+| `src/saver.c`, `src/saver.h` | Screen saver: after five idle minutes the picture is blanked and a dim caption wanders the text screen |
 | `src/board.c`, `src/board.h` | Board setup and whole-board queries |
 | `src/rules.asm` | Direction walks (flip count, legality, playing a move) and the positional evaluation |
-| `src/cpu.c` | Computer player: greedy level and alpha-beta search |
-| `src/video.asm`, `src/video.h` | Framebuffer primitives, `ESC r` bulk writes, BIOS console I/O |
-| `src/sprites.h` | Generated disc, cursor and coordinate-glyph bitmaps |
-| `tools/` | Sprite generator, emulator launchers, screenshot, tests, benchmark |
+| `src/cpu.c`, `src/cpu.h` | Computer player: greedy level and alpha-beta search |
+| `src/video.asm`, `src/video.h` | Framebuffer primitives, `ESC r` row uploads, BIOS console I/O |
+| `src/sprites.h`, `src/splash.h` | Generated disc, cursor and coordinate-glyph bitmaps; the run-length encoded title picture |
+| `tools/` | Sprite and title-picture generators, emulator launchers, screenshot, tests, benchmark |
 
 ## Display notes
 

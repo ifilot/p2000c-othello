@@ -11,8 +11,8 @@ ZCC      = docker run --rm --user $(shell id -u):$(shell id -g) -v "$(CURDIR)":/
 ZCCFLAGS = +cpm -vn -clib=sdcc_iy -O3 -SO3 --opt-code-speed --max-allocs-per-node200000 \
            -Ibuild -create-app
 
-SOURCES = src/main.c src/board.c src/cpu.c src/video.asm src/rules.asm
-HEADERS = src/video.h src/board.h src/cpu.h src/sprites.h src/version.h
+SOURCES = src/main.c src/game.c src/screen.c src/panel.c src/screens.c src/saver.c src/clock.c src/board.c src/cpu.c src/video.asm src/rules.asm
+HEADERS = src/video.h src/board.h src/cpu.h src/game.h src/screen.h src/panel.h src/screens.h src/saver.h src/clock.h src/sprites.h src/splash.h src/version.h
 COM     = build/OTHELLO.COM
 DIAG    = tools/diag/DIAG.COM
 
@@ -52,9 +52,10 @@ deploy: build
 	$(P2000C_DISK) verify $(DEPLOY_IMAGE)
 	$(P2000C_DISK) list $(DEPLOY_IMAGE)
 
-# Regenerate disc/glyph bitmaps (needs the p2000c-emulator font sheet).
+# Regenerate disc/glyph bitmaps and the title picture (need the p2000c-emulator font sheet).
 sprites:
 	python3 tools/gen_sprites.py
+	python3 tools/gen_splash.py
 
 # Open the game in the graphical emulator.
 run: build
