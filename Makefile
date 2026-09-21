@@ -4,7 +4,7 @@
 # `make run` need the sibling p2000c-cpm-disk-tool checkout (headless emulator
 # and dist/pro/ disk images) and, for the character-ROM font, p2000c-emulator.
 
-VERSION    = 1.0.0
+VERSION    = 1.0.1
 BUILD_DATE = $(shell date +%Y-%m-%d)
 
 ZCC      = docker run --rm --user $(shell id -u):$(shell id -g) -v "$(CURDIR)":/src -w /src z88dk/z88dk zcc
