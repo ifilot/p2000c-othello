@@ -57,8 +57,8 @@ emulator, character-ROM font):
 make run              # open the game in the graphical emulator (WSLg/Linux)
 make screenshot       # plain raster dump (green on black) -> build/board.png
 make test             # full games against the computer in the headless emulator
-make deploy           # build/HD1_256.hda: second SASI disk with OTHELLO.COM and DIAG.COM on F:
-make diag             # assemble tools/diag/DIAG.COM, the terminal diagnostic for real hardware
+make deploy           # build/HD1_256.hda: second SASI disk with OTHELLO.COM on F:
+make diag             # assemble tools/diag/DIAG.COM, the terminal probe used during development
 make sprites          # regenerate src/sprites.h from the font sheet
 python3 tools/bench.py 3   # emulated seconds per round at a level
 ```
@@ -98,8 +98,8 @@ bottom to top. The keyboard's cursor keys send the WordStar diamond
 The [workflow](.github/workflows/build.yml) builds `OTHELLO.COM` with the
 Z88DK Docker image on every push and pull request, builds the SASI image
 `HD1_256.hda` with the disk tool, and uploads both as an artifact; pushing a
-`v*` tag publishes a GitHub release with the binary, the image, the terminal
-diagnostic and a ZIP that includes the license and this README.
+`v*` tag publishes a GitHub release with the binary, the image and a ZIP that
+includes the license and this README.
 
 ## License
 

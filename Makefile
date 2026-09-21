@@ -18,8 +18,7 @@ DIAG    = tools/diag/DIAG.COM
 
 # Deployment image for the SASI emulator (ZuluBlaster): a second-disk image
 # with the standard split layout (E: low, F: high) built with the sibling
-# disk tool's CLI and its split system tracks, holding only the game and the
-# terminal diagnostic on F:.
+# disk tool's CLI and its split system tracks, holding only the game on F:.
 DISKTOOL      = ../p2000c-cpm-disk-tool
 P2000C_DISK   = PYTHONPATH=$(DISKTOOL)/src python3 -m p2000c_disk.cli
 SYSTEM_TRACKS = $(DISKTOOL)/assets/boot/hdboot-split.trk
@@ -37,18 +36,19 @@ $(COM): $(SOURCES) $(HEADERS) Makefile
 	$(ZCC) $(ZCCFLAGS) $(SOURCES) -o build/othello
 	rm -f build/othello build/othello_CODE.bin
 
-# Terminal diagnostic for real hardware (see tools/diag/README.md).
+# Terminal diagnostic for real hardware (see tools/diag/README.md); not part
+# of the deployment.
 diag: $(DIAG)
 
 $(DIAG): tools/diag/diag.asm
 	z80asm -o $@ $<
 
-# HD1_256.hda with OTHELLO.COM and DIAG.COM on F: and nothing else. Copy it
-# to the SD card in place of the distribution's HD1_256.hda.
-deploy: build $(DIAG)
+# HD1_256.hda with OTHELLO.COM on F: and nothing else. Copy it to the SD card
+# in place of the distribution's HD1_256.hda.
+deploy: build
 	rm -f $(DEPLOY_IMAGE)
 	$(P2000C_DISK) build $(DEPLOY_IMAGE) --layout split --system $(SYSTEM_TRACKS)
-	$(P2000C_DISK) put-many $(DEPLOY_IMAGE) $(COM) $(DIAG) --partition high
+	$(P2000C_DISK) put-many $(DEPLOY_IMAGE) $(COM) --partition high
 	$(P2000C_DISK) verify $(DEPLOY_IMAGE)
 	$(P2000C_DISK) list $(DEPLOY_IMAGE)
 

@@ -31,11 +31,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install z80asm (terminal diagnostic)
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes z80asm
-
       - name: Pull the Z88DK toolchain image
         run: docker pull z88dk/z88dk
 
@@ -48,8 +43,8 @@ jobs:
       - name: Package
         run: |
           mkdir -p release
-          cp build/OTHELLO.COM build/HD1_256.hda tools/diag/DIAG.COM LICENSE README.md release/
-          cd release && zip -9 ../p2000c-othello.zip OTHELLO.COM DIAG.COM HD1_256.hda LICENSE README.md
+          cp build/OTHELLO.COM build/HD1_256.hda LICENSE README.md release/
+          cd release && zip -9 ../p2000c-othello.zip OTHELLO.COM HD1_256.hda LICENSE README.md
           sha256sum ../p2000c-othello.zip OTHELLO.COM HD1_256.hda
 
       - name: Upload build
