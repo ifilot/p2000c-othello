@@ -10,7 +10,8 @@
  * Keys: cursor keys or W/A/S/D move, RETURN or SPACE places, N restarts,
  * H shows the help screen (in plain text mode), Q asks before quitting.
  * The human plays Black and moves first; the difficulty (1-3) is chosen
- * at the start.
+ * at the start. D on the start screen runs a demo game between two
+ * computer players (Black level 2, White level 3); any key ends it.
  * Dots have a 3:5 pitch on the CRT, so a 40x24-dot cell is square.
  */
 #include "video.h"
@@ -36,11 +37,18 @@
 #define ROW_MOVE        13
 #define BLANK16         "                "
 
-/* Keyboard codes sent by the P2000C for the cursor keys (WordStar set). */
-#define KEY_LEFT  0x15
-#define KEY_RIGHT 0x06
-#define KEY_UP    0x1A
-#define KEY_DOWN  0x0A
+/* Cursor keys. The P2000C keyboard's cursor quadrant emits the WordStar
+ * diamond (^S ^D ^E ^X, as P2EDIT and SuperCalc expect); the graphical
+ * emulator sends the terminal's own cursor-control bytes instead, so both
+ * sets are accepted. */
+#define KEY_LEFT   0x13                     /* ^S */
+#define KEY_RIGHT  0x04                     /* ^D */
+#define KEY_UP     0x05                     /* ^E */
+#define KEY_DOWN   0x18                     /* ^X */
+#define KEY_LEFT2  0x15
+#define KEY_RIGHT2 0x06
+#define KEY_UP2    0x1A
+#define KEY_DOWN2  0x0A
 #define KEY_CR    0x0D
 #define BEL       0x07
 
@@ -65,6 +73,9 @@ static unsigned char to_move;
 static unsigned char cursor;
 static unsigned char game_over;
 static unsigned char move_number;
+static unsigned char demo;                  /* both colours played by the computer */
+#define DEMO_BLACK_LEVEL 2
+#define DEMO_WHITE_LEVEL 3
 
 /* --- drawing ---------------------------------------------------------------- */
 
@@ -110,7 +121,7 @@ static void draw_labels(void)
 static unsigned char appearance(unsigned char cell)
 {
     unsigned char look = board[cell];
-    if (look == EMPTY && !game_over && to_move == BLACK && board_is_legal(cell, to_move))
+    if (look == EMPTY && !game_over && !demo && to_move == BLACK && board_is_legal(cell, to_move))
         look |= SHOW_HINT;
     if (cell == cursor)
         look |= SHOW_CURSOR;
@@ -167,6 +178,43 @@ static void sync_cells(void)
     }
 }
 
+/* Draws a straight line with the terminal's vector commands (ESC m / ESC M),
+ * in framebuffer coordinates (dot x, line from the top). Axis-aligned lines
+ * come out identical to the framebuffer's, so later cell uploads match. */
+static void vector(unsigned int x0, unsigned int line0, unsigned int x1, unsigned int line1)
+{
+    conout(27); conout('m'); conout(x0 & 0xFF); conout(x0 >> 8); conout(251 - line0);
+    conout(27); conout('M'); conout(x1 & 0xFF); conout(x1 >> 8); conout(251 - line1);
+}
+
+/* Sends the composed frame the fast way: the terminal clears its picture RAM
+ * on ESC 3, so only the grid (as 22 vectors, ~220 bytes) and the occupied
+ * cells, labels and icons (~3 KB of row uploads) need to go over the link,
+ * instead of the full 16 KiB. Roughly 1.7 s at 19200 baud instead of 8.5 s. */
+static void flush_frame(void)
+{
+    unsigned char i, cell;
+    unsigned int x;
+    for (i = 0; i <= 8; i++) {
+        vector(8, BOARD_TOP + i * CELL_H, 328, BOARD_TOP + i * CELL_H);
+        x = 8 + i * 40;
+        vector(x, BOARD_TOP, x, BOARD_TOP + BOARD_LINES);
+    }
+    vector(6, BOARD_TOP - FRAME_GAP, 330, BOARD_TOP - FRAME_GAP);
+    vector(6, BOARD_TOP + BOARD_LINES + FRAME_GAP, 330, BOARD_TOP + BOARD_LINES + FRAME_GAP);
+    vector(6, BOARD_TOP - FRAME_GAP, 6, BOARD_TOP + BOARD_LINES + FRAME_GAP);
+    vector(330, BOARD_TOP - FRAME_GAP, 330, BOARD_TOP + BOARD_LINES + FRAME_GAP);
+    for (cell = 0; cell < 64; cell++)
+        if (shown[cell] != 0)
+            flush_rows(cell, 1, CELL_H - 1);
+    for (i = 0; i < 8; i++) {
+        video_flush_rect(COLROW(LEFT_BYTE + 2 + i * CELL_BYTES, BOARD_TOP + BOARD_LINES + 8), WH(1, 12));
+        video_flush_rect(COLROW(LEFT_BYTE + 8 * CELL_BYTES + 1, BOARD_TOP + i * CELL_H + 6), WH(1, 12));
+    }
+    video_flush_rect(COLROW(PANEL_ICON_BYTE, 5 * 12 + 1), WH(2, 10));
+    video_flush_rect(COLROW(PANEL_ICON_BYTE, 6 * 12 + 1), WH(2, 10));
+}
+
 static void draw_board(void)
 {
     unsigned char cell;
@@ -208,6 +256,8 @@ static void show_scores(void)
 
 static void show_cursor_name(void)
 {
+    if (demo)
+        return;
     con_at(ROWCOL(ROW_CURSOR, PANEL_COL + 8));
     if (cursor == NO_CURSOR)
         con_puts("--");
@@ -228,19 +278,23 @@ static void show_note(const char *note)
     con_puts(BLANK16);
 }
 
-static void show_cpu_move(unsigned char cell)
+static unsigned char note_colour = WHITE;
+
+static void show_cpu_move(unsigned char colour, unsigned char cell)
 {
     note_cell = cell;
+    note_colour = colour;
     con_at(ROWCOL(ROW_NOTE, PANEL_COL));        /* "Wit speelt E3" */
-    con_puts("Wit speelt ");
+    con_puts(name_of(colour));
+    con_puts(" speelt ");
     put_cell_name(cell);
-    con_puts("   ");
+    con_puts("     ");
 }
 
 static void restore_note(void)
 {
     if (note_cell != NO_CURSOR)
-        show_cpu_move(note_cell);
+        show_cpu_move(note_colour, note_cell);
     else
         show_note(note_text);
 }
@@ -278,6 +332,17 @@ static void draw_panel(void)
 {
     con_at(ROWCOL(1, PANEL_COL));  con_puts("O T H E L L O");
     con_at(ROWCOL(2, PANEL_COL));  con_puts("Philips P2000C");
+    if (demo) {
+        con_at(ROWCOL(5, PANEL_COL));  con_puts("Zwart niv.2");
+        con_at(ROWCOL(6, PANEL_COL));  con_puts("Wit   niv.3");
+        con_at(ROWCOL(ROW_MOVE, PANEL_COL)); con_puts("Zet     ");
+        con_at(ROWCOL(16, PANEL_COL)); con_puts("DEMO");
+        con_at(ROWCOL(17, PANEL_COL)); con_puts("computer tegen");
+        con_at(ROWCOL(18, PANEL_COL)); con_puts("computer");
+        con_at(ROWCOL(19, PANEL_COL)); con_puts("Toets: stoppen");
+        show_scores();
+        return;
+    }
     con_at(ROWCOL(5, PANEL_COL));  con_puts("Zwart (u)");
     con_at(ROWCOL(6, PANEL_COL));  con_puts("Wit (P2000C)");
     con_at(ROWCOL(ROW_CURSOR, PANEL_COL)); con_puts("Cursor  ");
@@ -302,14 +367,14 @@ static void new_game(void)
     to_move = BLACK;
     game_over = 0;
     move_number = 1;
-    cursor = board_first_move(BLACK);
+    cursor = demo ? NO_CURSOR : board_first_move(BLACK);
 }
 
 /* Brings board, scores and cursor up to date, then the status line.
  * A null note leaves the note row as it is. */
 static void refresh(const char *note)
 {
-    cursor = (!game_over && to_move == BLACK) ? board_first_move(BLACK) : NO_CURSOR;
+    cursor = (!game_over && !demo && to_move == BLACK) ? board_first_move(BLACK) : NO_CURSOR;
     sync_cells();
     show_scores();
     show_cursor_name();
@@ -348,7 +413,7 @@ static void cpu_turn(void)
         cpu_choose(WHITE, &cell);           /* to_move == WHITE implies a legal move */
         note = advance(cell);
         if (*note == '\0') {
-            show_cpu_move(cell);
+            show_cpu_move(WHITE, cell);
             note = 0;
         }
         refresh(note);
@@ -398,6 +463,7 @@ static const char *const HELP[] = {
     "  Pijltjes of W A S D   cursor verplaatsen      RETURN of spatie   schijf leggen",
     "  H                     dit hulpscherm          N                  nieuw spel",
     "  Q                     stoppen (met bevestiging)",
+    "  D (startscherm)       demo: de computer speelt tegen zichzelf",
     "",
     "NIVEAUS",
     "  1  licht     de computer pakt de zet die de meeste schijven omdraait",
@@ -436,13 +502,69 @@ static void help_screen(void)
     help_page();
     video_graphics();
     draw_panel();
-    video_flush_rows(WH(0, FB_LINES));
+    flush_frame();
     if (game_over)
         announce_result();
     else {
         restore_note();
         announce_turn();
     }
+}
+
+/* --- demo: computer against computer -------------------------------------- */
+
+/* Waits roughly a second (at 4 MHz); a key pressed meanwhile is consumed and
+ * reported. */
+static unsigned char pause_or_key(void)
+{
+    unsigned int i;
+    for (i = 0; i < 6000; i++) {
+        if (conready()) {
+            conin();
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* One demo game; returns when it is over and a key was pressed, or when a
+ * key interrupts it. The pressed key is consumed. */
+static void demo_game(void)
+{
+    unsigned char cell, mover;
+    const char *note;
+
+    demo = 1;
+    new_game();
+    draw_board();
+    video_graphics();
+    draw_panel();
+    flush_frame();
+    announce_turn();
+
+    while (!game_over) {
+        cpu_level = to_move == BLACK ? DEMO_BLACK_LEVEL : DEMO_WHITE_LEVEL;
+        con_at(ROWCOL(ROW_STATUS, PANEL_COL));
+        con_puts(name_of(to_move));
+        con_puts(" denkt...       ");
+        cpu_choose(to_move, &cell);         /* to_move always has a legal move */
+        mover = to_move;
+        note = advance(cell);
+        show_cpu_move(mover, cell);
+        if (*note != '\0') {
+            /* a pass: show it in the status line, the move stays in the note */
+            sync_cells();
+            show_scores();
+            show_status(note);
+        } else
+            refresh(0);
+        if (pause_or_key())
+            break;
+    }
+    if (!game_over)
+        show_status("Demo gestopt");
+    conin();
+    demo = 0;
 }
 
 /* --- start screen ------------------------------------------------------------ */
@@ -501,10 +623,12 @@ static void draw_start_screen(void)
     con_at(ROWCOL(16, 20)); con_puts("3  Zwaar     kijkt drie zetten vooruit");
 
     con_at(ROWCOL(19, 12)); con_puts("U speelt met zwart en begint, de P2000C speelt met wit.");
-    con_at(ROWCOL(21, 9));  con_puts("1, 2 of 3: spelen       H: spelregels       Q: terug naar CP/M");
+    con_at(ROWCOL(21, 6));  con_puts("1, 2 of 3: spelen    D: demo    H: spelregels    Q: terug naar CP/M");
 }
 
-/* Text-mode start screen; returns the chosen level, or 0 to leave the program. */
+/* Text-mode start screen; returns the chosen level, DEMO for a demo game, or
+ * 0 to leave the program. */
+#define DEMO 9
 static unsigned char start_screen(void)
 {
     unsigned char key;
@@ -513,6 +637,8 @@ static unsigned char start_screen(void)
         key = conin();
         if (key >= '1' && key <= '3')
             return key - '0';
+        if (key == 'd' || key == 'D')
+            return DEMO;
         if (key == 'q' || key == 'Q')
             return 0;
         if (key == 'h' || key == 'H') {
@@ -546,7 +672,7 @@ static unsigned char play(void)
     draw_board();
     video_graphics();
     draw_panel();
-    video_flush_rows(WH(0, FB_LINES));
+    flush_frame();
     announce_turn();
 
     for (;;) {
@@ -554,10 +680,10 @@ static unsigned char play(void)
         if (key >= 'A' && key <= 'Z')
             key += 'a' - 'A';
         switch (key) {
-        case KEY_LEFT:  case 'a': move_cursor(-1, 0); break;
-        case KEY_RIGHT: case 'd': move_cursor(1, 0);  break;
-        case KEY_UP:    case 'w': move_cursor(0, -1); break;
-        case KEY_DOWN:  case 's': move_cursor(0, 1);  break;
+        case KEY_LEFT:  case KEY_LEFT2:  case 'a': move_cursor(-1, 0); break;
+        case KEY_RIGHT: case KEY_RIGHT2: case 'd': move_cursor(1, 0);  break;
+        case KEY_UP:    case KEY_UP2:    case 'w': move_cursor(0, -1); break;
+        case KEY_DOWN:  case KEY_DOWN2:  case 's': move_cursor(0, 1);  break;
         case KEY_CR:    case ' ':
             if (!play_cursor())
                 conout(BEL);
@@ -581,6 +707,11 @@ int main(void)
 
     conout(ESC); conout('c');
     while ((level = start_screen()) != 0) {
+        if (level == DEMO) {
+            demo_game();
+            video_text();
+            continue;
+        }
         cpu_level = level;
         level = play();
         video_text();

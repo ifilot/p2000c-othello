@@ -25,6 +25,7 @@ extern void video_text(void);
 
 extern void conout(unsigned int c) __z88dk_fastcall;
 extern unsigned char conin(void);
+extern unsigned char conready(void);          /* key waiting? (BIOS CONST) */
 extern void con_puts(const char *s) __z88dk_fastcall;
 extern void con_at(unsigned int row_col) __z88dk_fastcall;
 

@@ -14,8 +14,18 @@ ZCCFLAGS = +cpm -vn -clib=sdcc_iy -O3 -SO3 --opt-code-speed --max-allocs-per-nod
 SOURCES = src/main.c src/board.c src/cpu.c src/video.asm src/rules.asm
 HEADERS = src/video.h src/board.h src/cpu.h src/sprites.h src/version.h
 COM     = build/OTHELLO.COM
+DIAG    = tools/diag/DIAG.COM
 
-.PHONY: all build run screenshot test sprites clean
+# Deployment image for the SASI emulator (ZuluBlaster): a second-disk image
+# with the standard split layout (E: low, F: high) built with the sibling
+# disk tool's CLI and its split system tracks, holding only the game and the
+# terminal diagnostic on F:.
+DISKTOOL      = ../p2000c-cpm-disk-tool
+P2000C_DISK   = PYTHONPATH=$(DISKTOOL)/src python3 -m p2000c_disk.cli
+SYSTEM_TRACKS = $(DISKTOOL)/assets/boot/hdboot-split.trk
+DEPLOY_IMAGE  = build/HD1_256.hda
+
+.PHONY: all build run screenshot test sprites deploy diag clean
 
 all: build
 
@@ -26,6 +36,21 @@ $(COM): $(SOURCES) $(HEADERS) Makefile
 	printf '#define VERSION "%s"\n#define BUILD_DATE "%s"\n' "$(VERSION)" "$(BUILD_DATE)" > build/build_info.h
 	$(ZCC) $(ZCCFLAGS) $(SOURCES) -o build/othello
 	rm -f build/othello build/othello_CODE.bin
+
+# Terminal diagnostic for real hardware (see tools/diag/README.md).
+diag: $(DIAG)
+
+$(DIAG): tools/diag/diag.asm
+	z80asm -o $@ $<
+
+# HD1_256.hda with OTHELLO.COM and DIAG.COM on F: and nothing else. Copy it
+# to the SD card in place of the distribution's HD1_256.hda.
+deploy: build $(DIAG)
+	rm -f $(DEPLOY_IMAGE)
+	$(P2000C_DISK) build $(DEPLOY_IMAGE) --layout split --system $(SYSTEM_TRACKS)
+	$(P2000C_DISK) put-many $(DEPLOY_IMAGE) $(COM) $(DIAG) --partition high
+	$(P2000C_DISK) verify $(DEPLOY_IMAGE)
+	$(P2000C_DISK) list $(DEPLOY_IMAGE)
 
 # Regenerate disc/glyph bitmaps (needs the p2000c-emulator font sheet).
 sprites:

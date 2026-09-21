@@ -18,7 +18,10 @@ Dutch. Three difficulty levels are offered at the start.
 
 Download `OTHELLO.COM` from the [releases](https://github.com/ifilot/p2000c-othello/releases)
 (or the latest [build artifact](https://github.com/ifilot/p2000c-othello/actions)),
-copy it to a CP/M disk and run `OTHELLO`. The start screen (plain text, so it
+copy it to a CP/M disk and run `OTHELLO`. With a ZuluBlaster/SASI setup,
+`make deploy` produces `build/HD1_256.hda`, a second-disk image in the
+standard split layout with the game on F:; copy it to the SD card in place
+of the distribution's `HD1_256.hda` and run `F:OTHELLO`. The start screen (plain text, so it
 appears instantly) asks for the difficulty; `1`, `2` or `3` starts the game.
 
 | Key | Action |
@@ -26,6 +29,7 @@ appears instantly) asks for the difficulty; `1`, `2` or `3` starts the game.
 | Cursor keys or `W` `A` `S` `D` | Move the cursor |
 | `RETURN` or space | Place a disc |
 | `H` | Help screen with the rules (plain text mode) |
+| `D` (start screen) | Demo: the computer plays itself (level 2 against level 3); any key stops it |
 | `N` | Back to the start screen for a new game |
 | `Q` | Quit, after confirmation (immediate on the start screen) |
 
@@ -53,6 +57,8 @@ emulator, character-ROM font):
 make run              # open the game in the graphical emulator (WSLg/Linux)
 make screenshot       # plain raster dump (green on black) -> build/board.png
 make test             # full games against the computer in the headless emulator
+make deploy           # build/HD1_256.hda: second SASI disk with OTHELLO.COM and DIAG.COM on F:
+make diag             # assemble tools/diag/DIAG.COM, the terminal diagnostic for real hardware
 make sprites          # regenerate src/sprites.h from the font sheet
 python3 tools/bench.py 3   # emulated seconds per round at a level
 ```
@@ -73,17 +79,27 @@ python3 tools/bench.py 3   # emulated seconds per round at a level
 
 The terminal draws graphics at the text raster's dot pitch; on the 4:3 CRT a
 dot is 3:5, so the 40x24-dot cells are square and the 30x18-dot discs round.
-The whole 16 KiB frame is composed in RAM and sent once with an `ESC r` bulk
-write (about four seconds over the serial link); afterwards only the rows of
-the cells that changed are re-sent. Raw bytes go through BIOS `CONOUT`,
-because BDOS console output filters control characters.
+The whole 16 KiB frame is composed in RAM, but only what the terminal cannot
+draw itself goes over the 19200-baud link: the grid is drawn with 22 vector
+commands and the discs, labels and icons are uploaded as `ESC r` rows
+(about 4.4 KB, two seconds); afterwards only the rows of the cells that
+changed are re-sent. Raw bytes go through BIOS `CONOUT`, because
+BDOS console output filters control characters.
+
+Two rules for `ESC r` were established on real hardware and are modelled in
+the headless emulator (see [tools/diag](tools/diag/README.md)): the byte
+count must not have a zero low byte, and the picture RAM runs bottom-up, so
+a multi-line upload starts at its lowest line and sends the lines from
+bottom to top. The keyboard's cursor keys send the WordStar diamond
+(`^S ^D ^E ^X`).
 
 ## Continuous integration
 
 The [workflow](.github/workflows/build.yml) builds `OTHELLO.COM` with the
-Z88DK Docker image on every push and pull request and uploads it as an
-artifact; pushing a `v*` tag publishes a GitHub release with the binary and a
-ZIP that includes the license and this README.
+Z88DK Docker image on every push and pull request, builds the SASI image
+`HD1_256.hda` with the disk tool, and uploads both as an artifact; pushing a
+`v*` tag publishes a GitHub release with the binary, the image, the terminal
+diagnostic and a ZIP that includes the license and this README.
 
 ## License
 
